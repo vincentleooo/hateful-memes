@@ -14,31 +14,49 @@ import os
 import sys
 import logging
 import warnings
+import argparse
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[logging.StreamHandler(sys.stdout)],
-)
+warnings.filterwarnings("ignore")
 
-warnings.filterwarnings('ignore')
 
 def main():
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(message)s",
+        handlers=[logging.StreamHandler(sys.stdout)],
+    )
+    parser = argparse.ArgumentParser(description="Image preprocessor")
+    parser.add_argument(
+        "--test",
+        type=bool,
+        action=argparse.BooleanOptionalAction,
+        help="Runs on the seen test dataset.",
+    )
+
+    opt = parser.parse_args()
+
+    out_dir = "preprocessed/img"
+
+    if opt.test:
+        json_dir = "./hateful_memes/test_seen.jsonl"
+    else:
+        json_dir = "./hateful_memes/train.jsonl"
+
     logging.info("Starting image preprocessing...")
-    if not os.path.isdir("preprocessed/img"):
+    if not os.path.isdir(out_dir):
         logging.warning("Preprocessed folder does not exist. Creating one...")
-        os.mkdir("preprocessed/img")
-    df = pd.read_json("./hateful_memes/train.jsonl", lines=True)
+        os.mkdir(out_dir)
+    df = pd.read_json(json_dir, lines=True)
     classes = get_classes("coco")
     labels_classes = []
     model = init()
-    
+
     for i in tqdm(df.img):
         img_path = f"./hateful_memes/{i}"
         result = inference_detector(model, img_path)
         bbox_result = result
         labels = [
-            np.full(bbox.shape[0], i, dtype=np.int32)\
+            np.full(bbox.shape[0], i, dtype=np.int32)
             for i, bbox in enumerate(bbox_result)
         ]
         labels = np.concatenate(labels)
@@ -53,7 +71,7 @@ def main():
         try:
             max_box_array = impt_bboxes.max(axis=0)
             min_box_array = impt_bboxes.min(axis=0)
-            
+
             # Opens a image in RGB mode
             im = Image.open(img_path)
 
@@ -66,20 +84,25 @@ def main():
             # Cropped image of above dimension
             # (It will not change original image)
             im1 = im.crop((left, top, right, bottom))
-            im1 = im1.save(f'./preprocessed/{i}')
+            im1 = im1.save(f"./preprocessed/{i}")
         except:
             im = Image.open(img_path)
-            im = im.save(f'./preprocessed/{i}')
-    
-    df['labels'] = labels_classes
+            im = im.save(f"./preprocessed/{i}")
+
+    df["labels"] = labels_classes
 
     logging.info("Dumping CSV file...")
-    df.to_csv("./preprocessed/train.csv")
+
+    if opt.test:
+        df.to_csv("./preprocessed/test_seen.csv")
+    else:
+        df.to_csv("./preprocessed/train.csv")
 
     logging.info("Rearranging")
-    rearrange()
+    rearrange(opt.test)
 
     logging.info("Done.")
 
-if __name__=="__main__":
+
+if __name__ == "__main__":
     main()

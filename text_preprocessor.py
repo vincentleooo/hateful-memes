@@ -11,6 +11,7 @@ import pickle
 import os
 import ast
 import re
+import argparse
 
 logging.basicConfig(
     level=logging.INFO,
@@ -97,16 +98,31 @@ class CorpusToEmbedding:
 
 
 def main():
+    parser = argparse.ArgumentParser(description="Image preprocessor")
+    parser.add_argument(
+        "--test",
+        type=bool,
+        action=argparse.BooleanOptionalAction,
+        help="Runs on the seen test dataset.",
+    )
+
+    opt = parser.parse_args()
+    
+    if opt.test:
+        dir = "test_seen"
+    else:
+        dir = "train"
+
     logging.info("You have accessed this file as a script.")
-    df = pd.read_csv("preprocessed/train.csv")
+    df = pd.read_csv(f"preprocessed/{dir}.csv")
     df["labels"] = df.labels.apply(ast.literal_eval)
     text_object = CorpusToEmbedding(df.text, df.labels, 30, 3)
-    # Pickling
-    if not os.path.isdir("preprocessed/img"):
+
+    if not os.path.isdir("preprocessed"):
         logging.warning("Preprocessed folder does not exist. Creating one...")
-        os.mkdir("preprocessed/img")
+        os.mkdir("preprocessed")
     logging.info(f"Dumping into pickle file...")
-    outfile = open(f"preprocessed/text_object", "wb")
+    outfile = open(f"preprocessed/text_object_{dir}", "wb")
     pickle.dump(text_object, outfile)
     outfile.close()
     logging.info("Done.")
