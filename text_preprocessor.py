@@ -10,6 +10,7 @@ import sys
 import pickle
 import os
 import ast
+import re
 
 logging.basicConfig(
     level=logging.INFO,
@@ -37,7 +38,7 @@ class CorpusToEmbedding:
         self._preprocess()
         self._text = self._text.apply(self._parse_list)
         self._text = self._text.apply(self._padding, args=(self.max_length,))
-        self._labels = self._labels.apply(self._parse_list)
+        self._labels = self._labels.apply(self._parse_list, args=(True,))
         self._labels = self._labels.apply(self._padding, args=(self.labels_length,))
         self._tokens = self._text
 
@@ -76,9 +77,11 @@ class CorpusToEmbedding:
         except:
             logging.warn(f"{x} is not indexable.")
 
-    def _parse_list(self, ls):
+    def _parse_list(self, ls: list, labels=False):
         ret_ls = []
         for i in ls:
+            if labels:
+                i = re.sub(r".+?_", "", i)
             x = self._get_index(i)
             if x is not None:
                 ret_ls.append(x)
